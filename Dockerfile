@@ -12,6 +12,7 @@ RUN ln -s ../usr/bin/rst2man.py rst2man
 
 WORKDIR /src
 RUN mkdir /pgbouncer
+RUN git checkout pgbouncer_1_9_0
 RUN git submodule init
 RUN git submodule update
 RUN ./autogen.sh
@@ -21,7 +22,8 @@ RUN make install
 RUN ls -R /pgbouncer
 
 FROM alpine:latest
-RUN apk --update add libevent openssl c-ares
+RUN apk --update add libevent openssl c-ares postgresql-client && \
+	rm -rf /var/cache/apk/*
 WORKDIR /
 COPY --from=build_stage /pgbouncer /pgbouncer
 ADD entrypoint.sh ./
