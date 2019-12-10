@@ -1,30 +1,53 @@
 FROM alpine:latest AS build_stage
 
-MAINTAINER brainsam@yandex.ru
+WORKDIR /tmp
 
-WORKDIR /
-RUN apk --update add git python py-pip build-base automake libtool m4 autoconf libevent-dev openssl-dev c-ares-dev
-RUN pip install docutils
-RUN git clone https://github.com/pgbouncer/pgbouncer.git src
+RUN apk --update --no-cache add \
+        autoconf \
+        autoconf-doc \
+        automake \
+        c-ares \
+        c-ares-dev \
+        curl \
+        gcc \
+        libc-dev \
+        libevent \
+        libevent-dev \
+        libtool \
+        make \
+        libressl-dev \
+        file \
+        pkgconf
 
-WORKDIR /bin
-RUN ln -s ../usr/bin/rst2man.py rst2man
+ARG PGBOUNCER_VERSION=1.12.0
 
-WORKDIR /src
-RUN mkdir /pgbouncer
-RUN git checkout pgbouncer_1_9_0
-RUN git submodule init
-RUN git submodule update
-RUN ./autogen.sh
-RUN	./configure --prefix=/pgbouncer --with-libevent=/usr/lib
-RUN make
-RUN make install
-RUN ls -R /pgbouncer
+RUN curl -Lso "/tmp/pgbouncer.tar.gz" \
+        "https://pgbouncer.github.io/downloads/files/${PGBOUNCER_VERSION}/pgbouncer-${PGBOUNCER_VERSION}.tar.gz"
+
+RUN mkdir /tmp/pgbouncer && \
+        tar -zxvf pgbouncer.tar.gz -C /tmp/pgbouncer --strip-components 1
+
+WORKDIR /tmp/pgbouncer
+
+RUN ./configure --prefix=/pgbouncer && \
+        make && \
+        make install
+
 
 FROM alpine:latest
-RUN apk --update add libevent openssl c-ares postgresql-client && \
-	rm -rf /var/cache/apk/*
+
+RUN apk --update --no-cache add \
+        libevent \
+        libressl \
+        ca-certificates \
+        c-ares \
+        openssl \
+        postgresql-client
+
 WORKDIR /
+
 COPY --from=build_stage /pgbouncer /pgbouncer
+
 ADD entrypoint.sh ./
+
 ENTRYPOINT ["./entrypoint.sh"]
